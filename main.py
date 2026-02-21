@@ -92,6 +92,8 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         running_process[user_id] = process
         await query.edit_message_text("🔄 App Restarted")
 
+async def handle_message(update, context):
+    await update.message.reply_text("Bot chal raha hai 🚀")
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
