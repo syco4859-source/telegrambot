@@ -96,11 +96,12 @@ def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.Document.ALL, upload_file))
+    app.add_handler(MessageHandler(filters.TEXT, handle_message))
     app.add_handler(CallbackQueryHandler(button))
 
     print("Hosting Bot Running 24/7...")
     app.run_polling()
-telegram-bot/
- ├── main.py
- ├── requirements.txt
+
+
+if __name__ == "__main__":
+    main()
