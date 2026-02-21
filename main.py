@@ -10,8 +10,7 @@ from telegram.ext import (
     filters
 )
 
-TOKEN = os.getenv("BOT_TOKEN")"
-
+TOKEN = os.getenv("BOT_TOKEN")
 BASE_DIR = "projects"
 os.makedirs(BASE_DIR, exist_ok=True)
 
