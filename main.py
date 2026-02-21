@@ -1,109 +1,77 @@
 import os
+import zipfile
 import subprocess
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    MessageHandler,
-    CallbackQueryHandler,
-    ContextTypes,
-    filters
-)
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
-TOKEN = os.getenv("BOT_TOKEN")
+TOKEN = "YOUR_BOT_TOKEN_HERE"
 BASE_DIR = "projects"
 os.makedirs(BASE_DIR, exist_ok=True)
 
 running_process = {}
 
-def user_dir(user_id):
-    path = os.path.join(BASE_DIR, str(user_id))
-    os.makedirs(path, exist_ok=True)
-    return path
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton("📂 My Files", callback_data="files")],
-        [InlineKeyboardButton("▶ Run", callback_data="run")],
-        [InlineKeyboardButton("⛔ Stop", callback_data="stop")],
-        [InlineKeyboardButton("🔄 Restart", callback_data="restart")]
-    ]
     await update.message.reply_text(
-        "🚀 Python Hosting Panel",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        "Send ZIP file.\n"
+        "Bot will auto install requirements.txt\n"
+        "Then use /run to start."
     )
 
-async def upload_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    folder = user_dir(user_id)
+async def handle_zip(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.message.from_user.id)
+    user_dir = os.path.join(BASE_DIR, user_id)
+    os.makedirs(user_dir, exist_ok=True)
 
-    doc = update.message.document
-    file = await doc.get_file()
-    file_path = os.path.join(folder, doc.file_name)
-    await file.download_to_drive(file_path)
+    file = await update.message.document.get_file()
+    zip_path = os.path.join(user_dir, "project.zip")
+    await file.download_to_drive(zip_path)
 
-    await update.message.reply_text("✅ File Uploaded Successfully")
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        zip_ref.extractall(user_dir)
 
-async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    user_id = query.from_user.id
-    folder = user_dir(user_id)
+    req_file = os.path.join(user_dir, "requirements.txt")
+    if os.path.exists(req_file):
+        subprocess.run(["pip3", "install", "-r", req_file])
 
-    await query.answer()
+    await update.message.reply_text("Upload complete & requirements installed.\nUse /run")
 
-    if query.data == "files":
-        files = os.listdir(folder)
-        text = "\n".join(files) if files else "No files uploaded."
-        await query.edit_message_text(f"📂 Your Files:\n{text}")
+async def run_project(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.message.from_user.id)
+    user_dir = os.path.join(BASE_DIR, user_id)
+    main_file = os.path.join(user_dir, "main.py")
 
-    elif query.data == "run":
-        main_file = os.path.join(folder, "main.py")
-        if not os.path.exists(main_file):
-            await query.edit_message_text("⚠ Upload main.py first")
-            return
+    if not os.path.exists(main_file):
+        await update.message.reply_text("main.py not found!")
+        return
 
-        process = subprocess.Popen(
-            ["python3", main_file],
-            cwd=folder
-        )
+    process = subprocess.Popen(
+        ["python3", main_file],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
 
-        running_process[user_id] = process
-        await query.edit_message_text("▶ App Started")
+    running_process[user_id] = process
+    await update.message.reply_text("Project started 24/7!")
 
-    elif query.data == "stop":
-        process = running_process.get(user_id)
-        if process:
-            process.kill()
-            running_process.pop(user_id)
-            await query.edit_message_text("⛔ App Stopped")
-        else:
-            await query.edit_message_text("⚠ No running app")
+async def stop_project(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.message.from_user.id)
 
-    elif query.data == "restart":
-        process = running_process.get(user_id)
-        if process:
-            process.kill()
+    if user_id in running_process:
+        running_process[user_id].terminate()
+        del running_process[user_id]
+        await update.message.reply_text("Project stopped.")
+    else:
+        await update.message.reply_text("No running project.")
 
-        main_file = os.path.join(folder, "main.py")
-        process = subprocess.Popen(
-            ["python3", main_file],
-            cwd=folder
-        )
-        running_process[user_id] = process
-        await query.edit_message_text("🔄 App Restarted")
+app = ApplicationBuilder().token(TOKEN).build()
 
-async def handle_message(update, context):
-    await update.message.reply_text("Bot chal raha hai 🚀")
-def main():
-    app = ApplicationBuilder().token(TOKEN).build()
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("run", run_project))
+app.add_handler(CommandHandler("stop", stop_project))
+app.add_handler(MessageHandler(filters.Document.FileExtension("zip"), handle_zip))
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT, handle_message))
-    app.add_handler(CallbackQueryHandler(button))
-
-    print("Hosting Bot Running 24/7...")
-    app.run_polling()
-
+print("Bot Running...")
+app.run_polling()
 
 if __name__ == "__main__":
     main()
