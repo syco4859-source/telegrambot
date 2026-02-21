@@ -102,6 +102,6 @@ def main():
 
     print("Hosting Bot Running 24/7...")
     app.run_polling()
-
-if __name__ == "__main__":
-    main()
+telegram-bot/
+ ├── main.py
+ ├── requirements.txt
