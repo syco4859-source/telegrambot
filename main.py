@@ -4,7 +4,8 @@ import subprocess
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
-TOKEN = "YOUR_BOT_TOKEN_HERE"
+import os
+TOKEN = os.getenv("8542846687:AAGxY_wYFouSN5rHHyuK4ZZdX4s3t4b8KHg")"
 BASE_DIR = "projects"
 os.makedirs(BASE_DIR, exist_ok=True)
 
